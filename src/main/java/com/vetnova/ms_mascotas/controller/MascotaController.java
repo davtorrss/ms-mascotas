@@ -17,13 +17,32 @@ public class MascotaController {
     private MascotaService mascotaService;
 
     @PostMapping("/crear")
-    public ResponseEntity<Mascota> crear(@Valid @RequestBody Mascota m) {
-        Mascota nueva = mascotaService.guardarMascota(m);
-        return new ResponseEntity<>(nueva, HttpStatus.CREATED);
+    public ResponseEntity<?> crear(@Valid @RequestBody Mascota mascota) {
+        try {
+            Mascota nueva = mascotaService.registrar(mascota);
+            return new ResponseEntity<>(nueva, HttpStatus.CREATED);
+        } catch (Exception e) {
+            // Manejo de error para que no tire 500
+            return new ResponseEntity<>(
+                "Error: No se pudo registrar la mascota. Verifique los datos enviados.", 
+                HttpStatus.CONFLICT
+            );
+        }
     }
 
     @GetMapping("/listar")
     public ResponseEntity<List<Mascota>> listar() {
-        return ResponseEntity.ok(mascotaService.obtenerTodas());
+        return ResponseEntity.ok(mascotaService.listar());
+    }
+
+    @PutMapping("/actualizar/{id}")
+    public ResponseEntity<Mascota> actualizar(@PathVariable Long id, @Valid @RequestBody Mascota mascota) {
+        return ResponseEntity.ok(mascotaService.actualizar(id, mascota));
+    }
+
+    @DeleteMapping("/eliminar/{id}")
+    public ResponseEntity<String> eliminar(@PathVariable Long id) {
+        mascotaService.eliminar(id);
+        return ResponseEntity.ok("Mascota eliminada correctamente del sistema.");
     }
 }
