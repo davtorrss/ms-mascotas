@@ -4,38 +4,34 @@ import com.vetnova.ms_mascotas.model.Mascota;
 import com.vetnova.ms_mascotas.repository.MascotaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.List;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Service
 public class MascotaService {
 
     @Autowired
-    private MascotaRepository mascotaRepository;
+    private MascotaRepository repository;
 
-    public Mascota registrar(Mascota mascota) {
-        // Aquí podrías agregar lógica adicional si fuera necesario
-        return mascotaRepository.save(mascota);
-    }
+    @Autowired
+    private WebClient.Builder webClientBuilder;
 
-    public List<Mascota> listar() {
-        return mascotaRepository.findAll();
-    }
-
-    public Mascota actualizar(Long id, Mascota nuevosDatos) {
-        return mascotaRepository.findById(id).map(m -> {
-            m.setNombre(nuevosDatos.getNombre());
-            m.setEspecie(nuevosDatos.getEspecie());
-            m.setRaza(nuevosDatos.getRaza());
-            m.setEdad(nuevosDatos.getEdad()); // Soporta Double (ej: 0.5)
-            m.setDuenoId(nuevosDatos.getDuenoId());
-            return mascotaRepository.save(m);
-        }).orElseThrow(() -> new RuntimeException("Mascota no encontrada con ID: " + id));
-    }
-
-    public void eliminar(Long id) {
-        if (!mascotaRepository.existsById(id)) {
-            throw new RuntimeException("El ID de la mascota no existe");
+    public Mascota guardarMascota(Mascota mascota) {
+        // Validar si el dueño existe en ms-duenos
+        try {
+            webClientBuilder.build()
+                    .get()
+                    .uri("http://localhost:8082/api/duenos/" + mascota.getDuenoId())
+                    .retrieve()
+                    .bodyToMono(Object.class)
+                    .block(); // Esto espera la respuesta
+        } catch (WebClientResponseException.NotFound e) {
+            throw new RuntimeException("El dueño con ID " + mascota.getDuenoId() + " no existe en el sistema.");
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo conectar con el servicio de dueños. ¿Está encendido?");
         }
-        mascotaRepository.deleteById(id);
+
+        // Si llegó hasta aquí, el dueño existe, guardamos la mascota
+        return repository.save(mascota);
     }
 }
